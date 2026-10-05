@@ -1,0 +1,37 @@
+{
+  "name": "agentdock-starter-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "ui:add": "node ../../agentdock-ui/packages/cli/dist/index.js add chat --yes",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentdock-ai/contracts": "link:../../agentdock/packages/contracts",
+    "@agentdock-ai/react": "link:../../agentdock-ui/packages/react",
+    "@agentdock-ai/ui-core": "link:../../agentdock-ui/packages/ui-core",
+    "lucide-react": "^1.46.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "agentdock-ui": "link:../../agentdock-ui/packages/cli",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.8.0",
+    "vite": "^8.3.0"
+  }
+}

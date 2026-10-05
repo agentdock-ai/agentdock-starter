@@ -1,0 +1,68 @@
+import { fileURLToPath } from "node:url";
+import { z } from "zod";
+import { createApp } from "./app.ts";
+import { createDatabase } from "./database.ts";
+import { createRepository } from "./repository.ts";
+import { createRuntime } from "./agent/runtime.ts";
+import { createSandbox } from "./agent/sandbox.ts";
+
+const env = z
+  .object({
+    DATABASE_URL: z.string().min(1),
+    OPENROUTER_API_KEY: z.string().min(1),
+    OPENROUTER_MODEL: z.string().min(1).default("openai/gpt-4o-mini"),
+    DEMO_USER_ID: z.string().min(1).default("local-demo-user"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  })
+  .parse(process.env);
+
+const sandbox = createSandbox(
+  fileURLToPath(new URL("../.sandbox", import.meta.url)),
+);
+await sandbox.initialize();
+const database = await createDatabase(env.DATABASE_URL);
+const { app, shutdown } = createApp({
+  runtime: createRuntime(
+    database.checkpointer,
+    sandbox,
+    env.OPENROUTER_API_KEY,
+    env.OPENROUTER_MODEL,
+  ),
+  repository: createRepository(database.pool, env.DEMO_USER_ID),
+  checkpointer: database.checkpointer,
+});
+const server = app.listen(env.PORT, "127.0.0.1", () => {
+  console.info(`AgentDock backend: http://127.0.0.1:${env.PORT}`);
+});
+server.once("error", async (error) => {
+  console.error("Could not start the backend", error);
+  await database.close();
+  process.exitCode = 1;
+});
+
+let closing = false;
+async function stop() {
+  if (closing) return;
+  closing = true;
+  // Give cooperative runs time to persist cancellation; bound shutdown if a dependency hangs.
+  const deadline = setTimeout(() => {
+    server.closeAllConnections();
+    process.exit(1);
+  }, 10_000).unref();
+  try {
+    await Promise.all([
+      shutdown(),
+      new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      ),
+    ]);
+    await database.close();
+  } catch (error) {
+    console.error("Backend shutdown failed", error);
+    process.exitCode = 1;
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+for (const signal of ["SIGINT", "SIGTERM"] as const)
+  process.once(signal, () => void stop());

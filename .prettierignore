@@ -1,0 +1,7 @@
+node_modules
+dist
+yarn.lock
+.env
+.sandbox
+frontend/src/components/agentdock-ui
+frontend/.agentdock-ui.json

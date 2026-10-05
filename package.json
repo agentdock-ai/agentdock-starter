@@ -1,0 +1,35 @@
+{
+  "name": "agentdock-starter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend dev\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "start": "concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend start\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "build": "yarn workspaces run build",
+    "typecheck": "yarn workspaces run typecheck",
+    "test": "yarn workspace agentdock-starter-backend test",
+    "ui:add": "yarn workspace agentdock-starter-frontend ui:add",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "ci": "yarn format:check && yarn test && yarn build"
+  },
+  "resolutions": {
+    "@agentdock-ai/contracts": "link:../agentdock/packages/contracts",
+    "@agentdock-ai/ui-core": "link:../agentdock-ui/packages/ui-core",
+    "@langchain/core": "1.2.11",
+    "@langchain/langgraph": "1.4.18",
+    "@langchain/openai": "1.5.13"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.9.9"
+  }
+}
