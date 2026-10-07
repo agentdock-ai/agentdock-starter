@@ -41,7 +41,6 @@ export async function createDatabase(connectionString: string) {
   try {
     await checkpointer.setup();
     await nativeStore.setup();
-    // This is a new byte-storage table. The three legacy demo tables remain untouched.
     await pool.query(`
       CREATE TABLE IF NOT EXISTS agentdock_conversation_files (
         id text PRIMARY KEY,

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { AIMessage } from "@langchain/core/messages";
 import { FakeStreamingChatModel } from "@langchain/core/utils/testing";
-import { InMemoryStore, MemorySaver } from "@langchain/langgraph-checkpoint";
+import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { createAgent } from "langchain";
 import { Agentdock } from "@agentdock-ai/agentdock";
 import { createInMemoryConversationStore } from "@agentdock-ai/conversations";
@@ -34,7 +34,7 @@ export async function fixture(t) {
   const model = new LatestRequestModel({ sleep: 2 });
   const checkpointer = new MemorySaver();
   const runtime = new Agentdock(createAgent({ model, checkpointer }).graph);
-  const store = createInMemoryConversationStore(new InMemoryStore());
+  const store = createInMemoryConversationStore();
   const files = new Map();
   const fileStorage = {
     async put({ id, bytes }) {
@@ -76,17 +76,12 @@ export async function fixture(t) {
   return {
     threadId: thread.id,
     model,
-    runtime,
     base,
     post,
-    files,
-    store,
-    fileStorage,
-    shutdown,
   };
 }
 
-export async function* streamEvents(reader) {
+async function* streamEvents(reader) {
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {

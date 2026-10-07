@@ -17,7 +17,7 @@ cancellation routing, and stale-writer exclusion.
   the frontend production build.
 - `yarn test:db` requires `AGENTDOCK_TEST_DATABASE_URL` pointing to a disposable
   PostgreSQL database whose name contains `test`. It checks a compiled graph,
-  Store/checkpointer persistence, idempotent demo migration, and approval
+  Store/checkpointer and attachment persistence, and approval
   recovery across separate Node processes.
 - `yarn test:load` uses the same disposable database and reports catalog page
   latency, transcript write latency, bounded history size, and process RSS for a
@@ -39,7 +39,6 @@ Open http://127.0.0.1:5176. Verify Stop/reload/fresh prompt, Continue, native
 approval/reload, new/select/rename thread and image upload/reload/preview. The
 fixture is test-only, binds loopback and rejects non-test database names.
 
-The one-way legacy importer lives in `scripts/migration/demo-conversations.ts`,
-invoked by `scripts/migrate-demo.ts`. Runtime source does not query or create
-the three demo tables. Migration combines old output events with checkpoint
-messages so prompts omitted from the old event log survive the cutover.
+Conversation records live in the application-owned LangGraph Store. File bytes use
+the configured `ConversationFileStorage` adapter; this starter supplies a PostgreSQL
+implementation in `src/database.ts`.

@@ -27,26 +27,17 @@ yarn dev
 
 Open http://127.0.0.1:5173. The backend listens on http://127.0.0.1:3000. `yarn dev` watches both apps; `yarn start` starts both without watching backend files. Stopping the root command stops both processes.
 
-## Conversation storage and migration
+## Conversation storage
 
-The native graph checkpointer stores workflow state. The PostgresStore stores Agentdock thread metadata, ordered display messages, operation receipts, and attachment references. Image bytes are stored in the new `agentdock_conversation_files` table. Startup creates that table and the LangGraph Store schema; it does not create, update, or drop the legacy demo tables.
+The native graph checkpointer stores workflow state. The PostgresStore stores Agentdock thread metadata, ordered display messages, operation receipts, and attachment references. Image bytes are stored through the starter's `ConversationFileStorage` adapter in `agentdock_conversation_files`. Startup sets up the native checkpointer, LangGraph Store schema, ordered catalog index, and file-byte table.
 
-The offline importer reads `agentdock_demo_threads`, `agentdock_demo_events`, and `agentdock_demo_attachments` without changing them. It preserves thread IDs, owners, titles, timestamps, native message IDs, partial text, order, and attachment bytes. Do not run it against production until an application-approved backup and maintenance boundary are in place. The existing tables remain the rollback/export source; retirement requires a separate explicit destructive migration.
-
-Rehearse only against a disposable database whose name includes `test`:
-
-```sh
-DATABASE_URL=postgresql://.../agentdock_test yarn workspace agentdock-starter-backend migrate:demo
-DATABASE_URL=postgresql://.../agentdock_test yarn workspace agentdock-starter-backend migrate:demo --apply
-```
-
-The first command is read-only with respect to the target database. The `--apply` command creates the Store schema and new attachment table and imports records idempotently. It never alters legacy rows or native checkpoints. Existing installations should take and verify an application-approved backup before the final cutover.
+The starter uses the shared conversation client and `/conversations` API. File storage can be replaced by an adapter implementing `put`, `get`, and idempotent `delete`.
 
 ## Commands
 
 - `yarn ci` checks formatting, TypeScript, deterministic backend tests, and the frontend build.
 - `yarn test` runs deterministic backend tests without provider requests.
-- `AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:db` runs the compiled-graph, PostgresStore/checkpointer, migration, and separate-process approval-recovery suites. The URL must point to a disposable database whose name contains `test`.
+- `AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:db` runs the compiled-graph, PostgresStore/checkpointer, attachment persistence, and separate-process approval-recovery suites. The URL must point to a disposable database whose name contains `test`.
 - `AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:load` reports bounded catalog paging, transcript-write latency, and RSS for a synthetic PostgresStore workload. This is a local baseline, not a production capacity claim.
 - `yarn build` checks backend TypeScript and builds the frontend.
 - `yarn ui:add` installs current registry components from the local Agentdock UI CLI.
