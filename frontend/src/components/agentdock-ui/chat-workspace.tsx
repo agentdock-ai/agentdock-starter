@@ -100,7 +100,10 @@ export function ChatWorkspace({
           <div
             className="min-h-0 flex-1"
             onClick={(event) => {
-              if ((event.target as HTMLElement).closest("button"))
+              if (
+                event.target instanceof Element &&
+                event.target.closest("[data-thread-navigation]")
+              )
                 mobile.current?.close();
             }}
           >

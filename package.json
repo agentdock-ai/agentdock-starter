@@ -16,13 +16,18 @@
     "build": "yarn workspaces run build",
     "typecheck": "yarn workspaces run typecheck",
     "test": "yarn workspace agentdock-starter-backend test",
+    "test:db": "yarn workspace agentdock-starter-backend test:db",
+    "test:load": "yarn workspace agentdock-starter-backend test:load",
     "ui:add": "yarn workspace agentdock-starter-frontend ui:add",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "yarn format:check && yarn test && yarn build"
+    "ci": "yarn format:check && yarn test && yarn build",
+    "test:e2e:serve": "yarn workspace agentdock-starter-backend test:e2e:serve"
   },
   "resolutions": {
+    "@agentdock-ai/agentdock": "link:../agentdock/packages/agentdock",
     "@agentdock-ai/contracts": "link:../agentdock/packages/contracts",
+    "@agentdock-ai/conversations": "link:../agentdock/packages/conversations",
     "@agentdock-ai/ui-core": "link:../agentdock-ui/packages/ui-core",
     "@langchain/core": "1.2.11",
     "@langchain/langgraph": "1.4.18",

@@ -2,9 +2,9 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { createApp } from "./app.ts";
 import { createDatabase } from "./database.ts";
-import { createRepository } from "./repository.ts";
 import { createRuntime } from "./agent/runtime.ts";
 import { createSandbox } from "./agent/sandbox.ts";
+import { createStartInput } from "./services/run-input.ts";
 
 const env = z
   .object({
@@ -28,8 +28,13 @@ const { app, shutdown } = createApp({
     env.OPENROUTER_API_KEY,
     env.OPENROUTER_MODEL,
   ),
-  repository: createRepository(database.pool, env.DEMO_USER_ID),
-  checkpointer: database.checkpointer,
+  store: database.store,
+  fileStorage: database.fileStorage,
+  actorId: env.DEMO_USER_ID,
+  prepareInput: (prompt, attachments) => createStartInput(prompt, attachments),
+  health: async () => {
+    await database.pool.query("SELECT 1");
+  },
 });
 const server = app.listen(env.PORT, "127.0.0.1", () => {
   console.info(`AgentDock backend: http://127.0.0.1:${env.PORT}`);

@@ -1,164 +1,113 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AgentStore, type AgentHistory } from "@agentdock-ai/react";
 import {
-  Chat,
-  ChatWorkspace,
-  ThreadSidebar,
-  type ChatThread,
-} from "@/components/agentdock-ui";
-import { createChatAdapter } from "./chat-adapter";
-
-type Thread = ChatThread & { createdAt?: string; updatedAt?: string };
+  AgentStore,
+  createConversationClient,
+  useConversations,
+} from "@agentdock-ai/react";
+import { Chat, ChatWorkspace, ThreadSidebar } from "@/components/agentdock-ui";
 
 export function App() {
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [thread, setThread] = useState<Thread | null>(null);
+  const threadId = useRef<string | null>(null);
+  const refreshHistoryRef = useRef<(id: string) => Promise<void>>(() =>
+    Promise.resolve(),
+  );
+  const client = useMemo(
+    () =>
+      createConversationClient({
+        getThreadId: () => threadId.current,
+        onOperationSettled: (id) => {
+          if (threadId.current === id) void refreshHistoryRef.current(id);
+        },
+      }),
+    [],
+  );
+  const conversations = useConversations(client);
+  refreshHistoryRef.current = (id) => conversations.refreshHistory(id);
   const [store, setStore] = useState(() => new AgentStore());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const pendingThread = useRef<AbortController | null>(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
-  const openThread = useCallback(async (selected: Thread) => {
-    pendingThread.current?.abort();
-    const controller = new AbortController();
-    pendingThread.current = controller;
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`/threads/${selected.id}/messages`, {
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("Could not load this thread.");
-      const result = (await response.json()) as AgentHistory;
-      const nextStore = new AgentStore();
-      nextStore.hydrateHistory(result);
-      if (controller.signal.aborted) return;
-      setThread(selected);
-      setStore(nextStore);
-      sessionStorage.setItem("agentdock:selectedThreadId", selected.id);
-    } catch (cause) {
-      if (controller.signal.aborted) return;
-      setError(
-        cause instanceof Error ? cause.message : "Could not load thread.",
-      );
-    } finally {
-      if (pendingThread.current === controller) setLoading(false);
-    }
-  }, []);
+  const create = useCallback(async () => {
+    const created = await conversations.create();
+    threadId.current = created.id;
+    sessionStorage.setItem("agentdock:selectedThreadId", created.id);
+  }, [conversations.create]);
 
-  const refreshThreads = useCallback(async () => {
-    const response = await fetch("/threads");
-    if (!response.ok) throw new Error("Could not load your threads.");
-    const result = (await response.json()) as { threads: Thread[] };
-    return result.threads;
-  }, []);
+  const select = useCallback(
+    async (id: string) => {
+      threadId.current = id;
+      await conversations.select(id);
+      sessionStorage.setItem("agentdock:selectedThreadId", id);
+    },
+    [conversations.select],
+  );
 
   useEffect(() => {
-    let current = true;
-    void (async () => {
-      try {
-        let available = await refreshThreads();
-        if (available.length === 0) {
-          const response = await fetch("/threads", { method: "POST" });
-          if (!response.ok) throw new Error("Could not create a thread.");
-          const result = (await response.json()) as { thread: Thread };
-          available = [result.thread];
-        }
-        if (!current) return;
-        setThreads(available);
-        const selectedId = sessionStorage.getItem("agentdock:selectedThreadId");
-        await openThread(
-          available.find((item) => item.id === selectedId) ?? available[0],
-        );
-      } catch (cause) {
-        if (current) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Could not connect to the server.",
-          );
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      current = false;
-      pendingThread.current?.abort();
-    };
-  }, [openThread, refreshThreads]);
-
-  const createThread = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch("/threads", { method: "POST" });
-      if (!response.ok) throw new Error("Could not create a thread.");
-      const result = (await response.json()) as { thread: Thread };
-      pendingThread.current?.abort();
-      pendingThread.current = null;
-      setLoading(false);
-      setThreads((current) => [result.thread, ...current]);
-      setThread(result.thread);
-      setStore(new AgentStore());
-      sessionStorage.setItem("agentdock:selectedThreadId", result.thread.id);
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not create thread.",
-      );
+    if (bootstrapped || conversations.loading) return;
+    setBootstrapped(true);
+    if (conversations.threads.length === 0) {
+      void create();
+      return;
     }
-  }, []);
+    const remembered = sessionStorage.getItem("agentdock:selectedThreadId");
+    const selected =
+      conversations.threads.find((item) => item.id === remembered) ??
+      conversations.threads[0]!;
+    threadId.current = selected.id;
+    void conversations.select(selected.id);
+  }, [
+    bootstrapped,
+    conversations.loading,
+    conversations.select,
+    conversations.threads,
+    create,
+  ]);
 
-  const updateTitle = useCallback((id: string, title: string) => {
-    setThreads((current) =>
-      current.map((item) =>
-        item.id === id && item.title === "New thread"
-          ? { ...item, title }
-          : item,
-      ),
-    );
-    setThread((current) =>
-      current?.id === id && current.title === "New thread"
-        ? { ...current, title }
-        : current,
-    );
-  }, []);
-
-  const adapter = useMemo(
-    () =>
-      thread
-        ? createChatAdapter(thread.id, (title) => updateTitle(thread.id, title))
-        : null,
-    [thread?.id, updateTitle],
-  );
+  useEffect(() => {
+    if (!conversations.selectedThread || !conversations.history) return;
+    const next = new AgentStore();
+    next.hydrateConversationHistory(conversations.history);
+    setStore(next);
+  }, [conversations.history, conversations.selectedThread]);
 
   return (
     <main className="h-dvh w-full p-2 sm:p-4">
-      {error && (
+      {conversations.error && (
         <p
           role="alert"
           className="mb-2 rounded-md border border-destructive/40 bg-background px-3 py-2 text-sm text-destructive"
         >
-          {error}
+          {conversations.error}
         </p>
       )}
-      {thread && adapter ? (
+      {conversations.selectedThread ? (
         <ChatWorkspace
           className="h-full"
-          title={thread.title}
+          title={conversations.selectedThread.title}
           brand="AgentDock"
           sidebar={
             <ThreadSidebar
-              threads={threads}
-              selectedId={thread.id}
+              threads={conversations.threads}
+              selectedId={conversations.selectedThread.id}
               onSelect={(id) => {
-                const selected = threads.find((item) => item.id === id);
-                if (selected && selected.id !== thread.id)
-                  void openThread(selected);
+                if (id !== conversations.selectedThread?.id) void select(id);
               }}
-              onNew={() => void createThread()}
+              onNew={() => void create()}
+              onRename={(id, title) => void conversations.rename(id, title)}
+              footer={
+                conversations.hasMoreThreads ? (
+                  <button
+                    type="button"
+                    onClick={() => void conversations.loadMoreThreads()}
+                    className="underline underline-offset-2"
+                  >
+                    Load more conversations
+                  </button>
+                ) : undefined
+              }
             />
           }
         >
-          {loading ? (
+          {conversations.loading ? (
             <div
               role="status"
               className="flex flex-1 items-center justify-center text-sm text-muted-foreground"
@@ -166,27 +115,41 @@ export function App() {
               Loading thread…
             </div>
           ) : (
-            <Chat
-              key={thread.id}
-              store={store}
-              adapter={adapter}
-              welcomeTitle="What should we build?"
-              welcomeDescription="Create and edit files, run a sandbox check, or attach an image to discuss."
-              suggestions={[
-                "Build a clean portfolio website in HTML and CSS.",
-                "Create a small .mjs script that prints a greeting, then run it.",
-              ]}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              {conversations.history?.nextCursor && (
+                <button
+                  type="button"
+                  onClick={() => void conversations.loadOlderHistory()}
+                  className="shrink-0 py-1 text-xs text-muted-foreground underline underline-offset-2"
+                >
+                  Load earlier messages
+                </button>
+              )}
+              <Chat
+                key={conversations.selectedThread.id}
+                store={store}
+                adapter={client.adapter}
+                className="min-h-0 flex-1"
+                welcomeTitle="What should we build?"
+                welcomeDescription="Create and edit files, run a sandbox check, or attach an image to discuss."
+                suggestions={[
+                  "Build a clean portfolio website in HTML and CSS.",
+                  "Create a small .mjs script that prints a greeting, then run it.",
+                ]}
+              />
+            </div>
           )}
         </ChatWorkspace>
-      ) : !loading ? (
+      ) : (
         <div
           role="status"
           className="flex h-full items-center justify-center text-sm text-muted-foreground"
         >
-          Connect to the Node server to start a thread.
+          {conversations.loading
+            ? "Loading conversations…"
+            : "Connect to the Node server to start a thread."}
         </div>
-      ) : null}
+      )}
     </main>
   );
 }

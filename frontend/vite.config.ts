@@ -13,9 +13,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/agent": "http://127.0.0.1:3000",
-      "/threads": "http://127.0.0.1:3000",
-      "/attachments": "http://127.0.0.1:3000",
+      "/conversations":
+        process.env.AGENTDOCK_BACKEND_URL ?? "http://127.0.0.1:3000",
     },
   },
 });

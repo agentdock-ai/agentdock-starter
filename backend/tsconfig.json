@@ -13,5 +13,5 @@
     "noUnusedParameters": true,
     "lib": ["ES2024"]
   },
-  "include": ["src"]
+  "include": ["src", "scripts"]
 }

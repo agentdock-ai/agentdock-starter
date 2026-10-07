@@ -92,7 +92,7 @@ export function createSandbox(sandboxRoot: string) {
     return { path: relative(sandboxRoot, file), deleted: true };
   }
 
-  async function runSandboxScript(path: string) {
+  async function runSandboxScript(path: string, runSignal?: AbortSignal) {
     if (typeof path !== "string" || !path.endsWith(".mjs"))
       throw new Error("Run only JavaScript module files ending in .mjs.");
     const file = await resolveFile(path);
@@ -103,6 +103,8 @@ export function createSandbox(sandboxRoot: string) {
     } finally {
       await handle.close();
     }
+
+    if (runSignal?.aborted) throw abortError(runSignal);
 
     return new Promise<{
       exitCode: number | null;
@@ -131,6 +133,7 @@ export function createSandbox(sandboxRoot: string) {
       let outputBytes = 0;
       let timedOut = false;
       let outputLimited = false;
+      let abortTimer: ReturnType<typeof setTimeout> | undefined;
       const timer = setTimeout(() => {
         timedOut = true;
         child.kill("SIGKILL");
@@ -150,17 +153,33 @@ export function createSandbox(sandboxRoot: string) {
         }
       }
 
+      function abortChild() {
+        child.kill("SIGTERM");
+        abortTimer = setTimeout(() => child.kill("SIGKILL"), 500);
+      }
+
+      runSignal?.addEventListener("abort", abortChild, { once: true });
+      if (runSignal?.aborted) abortChild();
+
       child.stdout.on("data", (chunk) => capture("stdout", chunk));
       child.stderr.on("data", (chunk) => capture("stderr", chunk));
       child.once("error", (error) => {
         clearTimeout(timer);
+        if (abortTimer) clearTimeout(abortTimer);
+        runSignal?.removeEventListener("abort", abortChild);
         reject(error);
       });
-      child.once("close", (code, signal) => {
+      child.once("close", (code, childSignal) => {
         clearTimeout(timer);
+        if (abortTimer) clearTimeout(abortTimer);
+        runSignal?.removeEventListener("abort", abortChild);
+        if (runSignal?.aborted) {
+          reject(abortError(runSignal));
+          return;
+        }
         resolvePromise({
           exitCode: code,
-          signal,
+          signal: childSignal,
           stdout,
           stderr,
           timedOut,
@@ -263,4 +282,9 @@ export function createSandbox(sandboxRoot: string) {
     delete: deleteSandboxFile,
     run: runSandboxScript,
   };
+}
+
+function abortError(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) return signal.reason;
+  return new DOMException("The operation was aborted.", "AbortError");
 }

@@ -49,7 +49,7 @@ export function MessageContent({
             </details>
           );
         const url = safeUrl(block.url);
-        if (block.type === "image" && url && /^https?:/i.test(url))
+        if (block.type === "image" && url && (/^https?:/i.test(url) || url.startsWith("/")))
           return <ImageAttachment key={`${block.id}:${url}`} url={url} />;
         const label =
           block.type === "citation"

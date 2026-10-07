@@ -1,4 +1,5 @@
 import { tool } from "langchain";
+import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 import type { createSandbox } from "./sandbox.ts";
 
@@ -38,11 +39,15 @@ export function createTools(sandbox: ReturnType<typeof createSandbox>) {
         "Delete one regular file in .sandbox. Requires user approval; folders cannot be deleted.",
       schema: z.object({ path: z.string().min(1) }),
     }),
-    tool(async ({ file }) => sandbox.run(file), {
-      name: "run_command",
-      description:
-        "Run a .mjs script in .sandbox with the restricted Node runtime. Requires user approval. No network or child processes; 10-second and 64 KB output limits.",
-      schema: z.object({ file: z.string().min(1).endsWith(".mjs") }),
-    }),
+    tool(
+      async ({ file }, config: RunnableConfig) =>
+        sandbox.run(file, config.signal),
+      {
+        name: "run_command",
+        description:
+          "Run a .mjs script in .sandbox with the restricted Node runtime. Requires user approval. No network or child processes; 10-second and 64 KB output limits.",
+        schema: z.object({ file: z.string().min(1).endsWith(".mjs") }),
+      },
+    ),
   ];
 }

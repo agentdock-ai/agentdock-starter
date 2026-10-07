@@ -1,108 +1,101 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { SUPERSEDE_MESSAGE } from "../src/services/run-input.ts";
-import { fixture, stoppedResponse } from "./helpers.js";
+import { fixture, startRequest, stoppedResponse } from "./helpers.js";
 
 test(
-  "stop → reload → new question preserves partial text, removes continuation, and starts with the latest input",
+  "Stop retains its partial transcript; a fresh prompt and explicit Continue remain distinct",
   { timeout: 15000 },
   async (t) => {
     const f = await fixture(t);
     const partial = await stoppedResponse(f, "Explain how the Sun moves");
     const historyResponse = await fetch(
-      `${f.base}/threads/${f.threadId}/messages`,
+      `${f.base}/conversations/${f.threadId}/history`,
     );
     assert.equal(historyResponse.status, 200);
     const history = await historyResponse.json();
-    assert.equal(history.resumeState, null);
-    assert.equal(history.messages[1].state, "stopped");
+    assert.equal(history.messages[1].outcome, "stopped");
     assert.ok(history.messages[1].content[0].text.startsWith(partial));
-    const native = await f.runtime.getMessages(f.threadId);
-    assert.equal(
-      native.length,
-      1,
-      "partial display content must not be manufactured as a completed native answer",
-    );
-    const continued = await f.post("/agent", {
-      action: "continue",
+    assert.ok(history.nativeControls.pendingNodes.length > 0);
+    const continued = await f.post(`/conversations/${f.threadId}/continue`, {
       operationId: randomUUID(),
+      threadId: f.threadId,
+      pendingOperationId: history.execution.operationId,
     });
-    assert.equal(continued.status, 409);
-    const next = await f.post("/agent", {
-      action: "start",
-      operationId: randomUUID(),
-      message: "Great what is my name",
-    });
-    assert.equal(
-      next.status,
-      200,
-      "cancel acknowledgement must release the thread for the next request",
-    );
-    const text = await next.text();
-    assert.ok(text.includes("message.completed"));
-    const call = f.model.calls.at(-1);
-    assert.ok(
-      call.some(
-        (m) => m.getType() === "system" && m.content === SUPERSEDE_MESSAGE,
-      ),
-    );
-    assert.ok(
-      JSON.stringify(call.at(-1).content).includes("Great what is my name"),
-    );
-    const reloaded = await (
-      await fetch(`${f.base}/threads/${f.threadId}/messages`)
+    assert.equal(continued.status, 200);
+    assert.ok((await continued.text()).includes("run.completed"));
+    const messages = f.model.calls.at(-1);
+    assert.ok(messages.length > 0);
+
+    const fresh = await startRequest(f, "Great, what is my name?");
+    assert.equal(fresh.response.status, 200);
+    assert.ok((await fresh.response.text()).includes("message.completed"));
+    const restored = await (
+      await fetch(`${f.base}/conversations/${f.threadId}/history`)
     ).json();
     assert.deepEqual(
-      reloaded.messages.map((m) => m.role),
-      ["user", "assistant", "user", "assistant"],
+      restored.messages.map(({ role }) => role),
+      ["user", "assistant", "assistant", "user", "assistant"],
     );
-    assert.equal(reloaded.messages[1].state, "stopped");
+    assert.equal(restored.messages[1].outcome, "stopped");
     assert.equal(
-      reloaded.messages.at(-1).content[0].text,
+      restored.messages.at(-1).content[0].text,
       "Your name is Zain.",
     );
-    assert.equal(reloaded.resumeState, null);
   },
 );
 
-test(
-  "reserves a thread before asynchronous preparation and does not stop a different operation",
-  { timeout: 15000 },
-  async (t) => {
-    const f = await fixture(t);
-    const operationId = randomUUID();
-    const ready = Promise.withResolvers();
-    const release = Promise.withResolvers();
-    const getResumeState = f.runtime.getResumeState.bind(f.runtime);
-    f.runtime.getResumeState = async (...args) => {
-      ready.resolve();
-      await release.promise;
-      return getResumeState(...args);
-    };
-    const starting = f.post("/agent", {
-      action: "start",
-      operationId,
-      message: "Explain the Sun",
-    });
-    await ready.promise;
-    const second = await f.post("/agent", {
-      action: "start",
-      operationId: randomUUID(),
-      message: "Second",
-    });
-    assert.equal(second.status, 409);
-    release.resolve();
-    const response = await starting;
-    const loadingHistory = fetch(`${f.base}/threads/${f.threadId}/messages`);
-    assert.equal(
-      (await f.post("/agent/cancel", { operationId: randomUUID() })).status,
-      409,
-    );
-    assert.equal((await f.post("/agent/cancel", { operationId })).status, 204);
-    await response.body.cancel();
-    const history = await (await loadingHistory).json();
-    assert.equal(history.resumeState, null);
-    assert.equal(f.model.calls.length, 1);
-  },
-);
+test("thread records are actor scoped and creation does not invoke the graph", async (t) => {
+  const f = await fixture(t);
+  const list = await (await fetch(`${f.base}/conversations`)).json();
+  assert.equal(list.threads.length, 1);
+  assert.equal(f.model.calls.length, 0);
+  assert.equal(
+    (await f.post(`/conversations/${f.threadId}`, { title: "Updated title" }))
+      .status,
+    404,
+  );
+  const patch = await fetch(`${f.base}/conversations/${f.threadId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Updated title" }),
+  });
+  assert.equal(patch.status, 200);
+  assert.equal((await patch.json()).thread.title, "Updated title");
+  const hidden = await f.post(`/conversations/${randomUUID()}/start`, {
+    operationId: randomUUID(),
+    threadId: randomUUID(),
+    prompt: "no",
+    attachments: [],
+  });
+  assert.equal(hidden.status, 400);
+});
+
+test("attachments are scoped to a thread and served from stable same-origin URLs", async (t) => {
+  const f = await fixture(t);
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRzUAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const form = new FormData();
+  form.set("file", new Blob([png], { type: "image/png" }), "saved.png");
+  const uploaded = await fetch(
+    `${f.base}/conversations/${f.threadId}/attachments`,
+    { method: "POST", body: form },
+  );
+  assert.equal(uploaded.status, 201);
+  const result = await uploaded.json();
+  assert.equal(result.content.url, result.url);
+  const served = await fetch(`${f.base}${result.url}`);
+  assert.equal(served.status, 200);
+  assert.equal(served.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await served.arrayBuffer()), png);
+  assert.equal(
+    (
+      await fetch(
+        `${f.base}/conversations/${randomUUID()}/attachments/${result.id}`,
+      )
+    ).status,
+    404,
+  );
+});

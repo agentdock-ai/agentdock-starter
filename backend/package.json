@@ -11,25 +11,28 @@
     "start": "node --env-file=.env src/server.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.js"
+    "migrate:demo": "node --env-file=.env scripts/migrate-demo.ts",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:db": "node --test --test-concurrency=1 tests/conversation-postgres.test.js tests/conversation-restart.test.js",
+    "test:load": "node --test --test-concurrency=1 tests/conversation-load.test.js",
+    "test:e2e:serve": "node tests/e2e-server.mjs"
   },
   "dependencies": {
     "@agentdock-ai/agentdock": "link:../../agentdock/packages/agentdock",
     "@agentdock-ai/contracts": "link:../../agentdock/packages/contracts",
+    "@agentdock-ai/conversations": "link:../../agentdock/packages/conversations",
     "@langchain/core": "1.2.11",
     "@langchain/langgraph": "1.4.18",
     "@langchain/langgraph-checkpoint-postgres": "^1.0.5",
     "@langchain/openrouter": "0.4.13",
     "express": "^5.1.0",
     "langchain": "1.5.10",
-    "multer": "^2.4.0",
     "pg": "^8.23.0",
     "zod": "4.5.4",
     "@langchain/langgraph-checkpoint": "^1.1.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/multer": "^2.0.0",
     "@types/pg": "^8.0.0",
     "@types/node": "^26.0.0",
     "typescript": "^5.8.0"

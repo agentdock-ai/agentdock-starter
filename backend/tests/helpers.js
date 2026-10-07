@@ -1,13 +1,13 @@
-import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { AIMessage } from "@langchain/core/messages";
 import { FakeStreamingChatModel } from "@langchain/core/utils/testing";
-import { MemorySaver } from "@langchain/langgraph";
+import { InMemoryStore, MemorySaver } from "@langchain/langgraph-checkpoint";
 import { createAgent } from "langchain";
 import { Agentdock } from "@agentdock-ai/agentdock";
+import { createInMemoryConversationStore } from "@agentdock-ai/conversations";
 import { createApp } from "../src/app.ts";
-import { httpError } from "../src/schemas.ts";
+import { createStartInput } from "../src/services/run-input.ts";
 
 class LatestRequestModel extends FakeStreamingChatModel {
   calls = [];
@@ -16,11 +16,12 @@ class LatestRequestModel extends FakeStreamingChatModel {
   }
   async *_streamResponseChunks(messages, options, manager) {
     this.calls.push(messages);
-    const latest = messages.findLast((m) => m.getType() === "human");
-    const text = JSON.stringify(latest.content);
+    const latest = messages.findLast(
+      (message) => message.getType() === "human",
+    );
     this.responses = [
       new AIMessage(
-        text.includes("name")
+        JSON.stringify(latest?.content).includes("name")
           ? "Your name is Zain."
           : "The Sun moves through the galaxy. ".repeat(10),
       ),
@@ -30,82 +31,62 @@ class LatestRequestModel extends FakeStreamingChatModel {
 }
 
 export async function fixture(t) {
-  const threadId = randomUUID();
-  const events = [];
   const model = new LatestRequestModel({ sleep: 2 });
   const checkpointer = new MemorySaver();
-  const graph = createAgent({ model, checkpointer }).graph;
-  const runtime = new Agentdock(graph);
-  const attachments = new Map();
-  const repository = {
-    async health() {},
-    async listThreads() {
-      return [{ id: threadId, title: "Test" }];
-    },
-    async createThread() {
-      return { id: threadId, title: "Test" };
-    },
-    async requireThread(id) {
-      if (id !== threadId) throw httpError(404, "Thread not found.");
-      return { id, title: "Test" };
-    },
-    async setTitle() {},
-    async touchThread() {},
-    async loadEvents() {
-      return [...events];
-    },
-    async saveEvent(_id, event) {
-      if (!events.some((item) => item.eventId === event.eventId))
-        events.push(event);
-    },
-    async listAttachments() {
-      return [...attachments.values()];
-    },
-    async loadAttachments(_id, ids) {
-      const files = [...new Set(ids)].map((id) => attachments.get(id));
-      if (files.some((file) => !file))
-        throw httpError(400, "Attachment is missing.");
-      return files;
-    },
-    async createAttachment(_id, file) {
-      const id = randomUUID();
-      attachments.set(id, { id, ...file });
+  const runtime = new Agentdock(createAgent({ model, checkpointer }).graph);
+  const store = createInMemoryConversationStore(new InMemoryStore());
+  const files = new Map();
+  const fileStorage = {
+    async put({ id, bytes }) {
+      files.set(id, Buffer.from(bytes));
       return id;
     },
-    async requireAttachment(id) {
-      if (!attachments.has(id)) throw httpError(404, "Attachment not found.");
-      return attachments.get(id);
+    async get(id) {
+      return files.get(id) ?? null;
+    },
+    async delete(id) {
+      files.delete(id);
     },
   };
-  const { app, shutdown } = createApp({ runtime, repository, checkpointer });
+  const { app, shutdown } = createApp({
+    runtime,
+    store,
+    fileStorage,
+    actorId: "fixture-owner",
+    prepareInput: (prompt, attachments) =>
+      createStartInput(prompt, attachments),
+    health: async () => {},
+  });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(async () => {
     await shutdown();
     server.closeAllConnections();
-    return new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
   });
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = (path, body) =>
     fetch(base + path, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId: threadId, ...body }),
+      body: JSON.stringify(body),
     });
+  const created = await post("/conversations", {});
+  const { thread } = await created.json();
   return {
-    threadId,
-    events,
-    runtime,
+    threadId: thread.id,
     model,
+    runtime,
     base,
     post,
-    repository,
-    attachments,
+    files,
+    store,
+    fileStorage,
     shutdown,
   };
 }
 
-async function* streamEvents(reader) {
+export async function* streamEvents(reader) {
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {
@@ -121,26 +102,42 @@ async function* streamEvents(reader) {
   }
 }
 
-export async function stoppedResponse(f, prompt) {
-  const operationId = randomUUID();
-  const response = await f.post("/agent", {
-    action: "start",
+export async function startRequest(f, prompt, operationId = randomUUID()) {
+  const path = `/conversations/${f.threadId}/start`;
+  const response = await f.post(path, {
     operationId,
-    message: prompt,
+    threadId: f.threadId,
+    prompt,
+    attachments: [],
   });
-  assert.equal(response.status, 200);
+  return { response, operationId };
+}
+
+export async function stoppedResponse(f, prompt) {
+  const { response, operationId } = await startRequest(f, prompt);
+  assertStatus(response, 200);
   const reader = response.body.getReader();
   const iterator = streamEvents(reader);
   let partial = "";
   while (partial.length < 4) {
     const next = await iterator.next();
-    assert.equal(next.done, false, "stream must produce partial content");
-    if (next.value.type === "message.part.delta")
-      partial += next.value.part.text ?? "";
+    if (next.done)
+      throw new Error("Stream ended before producing a partial answer.");
+    const event = next.value.event;
+    if (event.type === "message.part.delta") partial += event.part.text ?? "";
   }
-  const cancelled = await f.post("/agent/cancel", { operationId });
-  assert.equal(cancelled.status, 204);
+  const stopped = await f.post(`/conversations/${f.threadId}/stop`, {
+    operationId: randomUUID(),
+    threadId: f.threadId,
+    targetOperationId: operationId,
+  });
+  assertStatus(stopped, 204);
   await reader.cancel();
   await iterator.return();
   return partial;
+}
+
+function assertStatus(response, status) {
+  if (response.status !== status)
+    throw new Error(`Expected ${status}, received ${response.status}.`);
 }

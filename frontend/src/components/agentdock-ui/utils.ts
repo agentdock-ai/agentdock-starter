@@ -4,10 +4,14 @@ export function cn(...values: (string | false | null | undefined)[]) {
 export function safeUrl(value?: string): string | undefined {
   if (!value) return undefined;
   try {
-    const url = new URL(value);
-    return ["https:", "http:", "mailto:"].includes(url.protocol)
-      ? value
-      : undefined;
+    const origin = globalThis.location?.origin ?? "http://localhost";
+    if (value.startsWith("//") || value.startsWith("\\\\")) return undefined;
+    const explicitScheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+    const url = new URL(value, origin);
+    if (explicitScheme)
+      return ["https:", "http:", "mailto:"].includes(url.protocol) ? value : undefined;
+    if (url.origin !== origin) return undefined;
+    return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return undefined;
   }
