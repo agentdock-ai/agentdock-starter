@@ -11,6 +11,7 @@ import {
 } from "../../../agentdock/packages/agentdock/test/helpers/stream-fixtures.mjs";
 import { createApp } from "../src/app.ts";
 import { createDatabase } from "../src/database.ts";
+import { checkDatabaseConnection } from "../src/models/health-model.ts";
 import { createStartInput } from "../src/services/run-input.ts";
 
 const databaseUrl = process.env.AGENTDOCK_TEST_DATABASE_URL;
@@ -88,7 +89,7 @@ const runtime = new Agentdock(
     ],
   }).graph,
   {
-    interruptFormat: "langchain-hitl",
+    interruptFormat: Agentdock.HITL,
     validateResume: validateToolApprovalResume,
   },
 );
@@ -98,9 +99,7 @@ const { app, shutdown } = createApp({
   fileStorage: database.fileStorage,
   actorId: "browser-e2e-owner",
   prepareInput: createStartInput,
-  health: async () => {
-    await database.pool.query("SELECT 1");
-  },
+  health: () => checkDatabaseConnection(database.pool),
 });
 const server = app.listen(3016, "127.0.0.1", () =>
   console.log(

@@ -1,6 +1,6 @@
 # Agentdock starter
 
-A small TypeScript backend and React frontend for a persistent Agentdock chat. The starter configures the compiled graph, native Postgres checkpointer, PostgresStore, trusted demo identity, attachment byte storage, and cancellable application tools. `@agentdock-ai/conversations` owns conversation routes, Store records, ordered transcript persistence, native-control projection, operation scoping, and request settlement. The shared React client and hook own thread/history synchronization while the existing `ChatAdapter` remains the UI boundary.
+A small TypeScript backend and React frontend for a persistent Agentdock chat. The starter configures the compiled graph, native Postgres checkpointer, PostgresStore, trusted demo identity, and cancellable application tools. `@agentdock-ai/conversations` owns conversation routes, Store records, ordered transcript persistence, native-control projection, operation scoping, request settlement, and a reusable PostgreSQL attachment-byte adapter. The shared React client and hook own thread/history synchronization while the existing `ChatAdapter` remains the UI boundary.
 
 The supported deployment profile is one execution-owning backend process. Multiple backend workers are unsupported: the Store is not an execution lock and does not fence stale native checkpoint writers.
 
@@ -29,9 +29,9 @@ Open http://127.0.0.1:5173. The backend listens on http://127.0.0.1:3000. `yarn 
 
 ## Conversation storage
 
-The native graph checkpointer stores workflow state. The PostgresStore stores Agentdock thread metadata, ordered display messages, operation receipts, and attachment references. Image bytes are stored through the starter's `ConversationFileStorage` adapter in `agentdock_conversation_files`. Startup sets up the native checkpointer, LangGraph Store schema, ordered catalog index, and file-byte table.
+The native graph checkpointer stores workflow state. The PostgresStore stores Agentdock thread metadata, ordered display messages, operation receipts, and attachment references. Image bytes use `createPostgresConversationFileStorage` from `@agentdock-ai/conversations`, which creates the `agentdock_conversation_files` table by default. Startup sets up the native checkpointer, LangGraph Store schema, ordered catalog index, and file-byte table.
 
-The starter uses the shared conversation client and `/conversations` API. File storage can be replaced by an adapter implementing `put`, `get`, and idempotent `delete`.
+The starter uses the shared conversation client and `/conversations` API. Its PostgreSQL file storage can be replaced by an adapter implementing `put`, `get`, and idempotent `delete`.
 
 ## Commands
 

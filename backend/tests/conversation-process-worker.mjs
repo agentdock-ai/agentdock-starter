@@ -53,7 +53,7 @@ const graph = createAgent({
   middleware: [humanInTheLoopMiddleware({ interruptOn: { write_file: true } })],
 }).graph;
 const runtime = new Agentdock(graph, {
-  interruptFormat: "langchain-hitl",
+  interruptFormat: Agentdock.HITL,
   validateResume: validateToolApprovalResume,
 });
 const service = new ConversationService({

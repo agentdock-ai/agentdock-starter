@@ -32,7 +32,7 @@ Explain changes concisely. Only claim changes and successful checks that tool re
   });
 
   return new Agentdock(agent.graph, {
-    interruptFormat: "langchain-hitl",
+    interruptFormat: Agentdock.HITL,
     validateResume: validateToolApprovalResume,
     onError(error, details) {
       console.error("Agent run failed", details, error);

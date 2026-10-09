@@ -5,6 +5,7 @@ import { createDatabase } from "./database.ts";
 import { createRuntime } from "./agent/runtime.ts";
 import { createSandbox } from "./agent/sandbox.ts";
 import { createStartInput } from "./services/run-input.ts";
+import { checkDatabaseConnection } from "./models/health-model.ts";
 
 const env = z
   .object({
@@ -32,9 +33,7 @@ const { app, shutdown } = createApp({
   fileStorage: database.fileStorage,
   actorId: env.DEMO_USER_ID,
   prepareInput: (prompt, attachments) => createStartInput(prompt, attachments),
-  health: async () => {
-    await database.pool.query("SELECT 1");
-  },
+  health: () => checkDatabaseConnection(database.pool),
 });
 const server = app.listen(env.PORT, "127.0.0.1", () => {
   console.info(`AgentDock backend: http://127.0.0.1:${env.PORT}`);
