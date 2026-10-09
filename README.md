@@ -69,7 +69,7 @@ command stops both processes.
 ## Project layout
 
 ```text
-backend/   Express server, LangGraph runtime, sandbox tools, and PostgreSQL setup
+backend/   Express server, system prompt, LangGraph runtime, sandbox tools, and PostgreSQL setup
 frontend/  React chat application and editable UI components
 ```
 
@@ -77,7 +77,9 @@ The starter delegates conversation routes, thread records, transcript
 persistence, and event synchronization to `@agentdock-ai/conversations` and the
 shared Agentdock React client. LangGraph owns graph execution and checkpoint
 state; PostgreSQL Store records hold the conversation catalog and display
-history.
+history. The trusted assistant instructions live in
+[`backend/prompts/assistant.md`](./backend/prompts/assistant.md) and are loaded
+once during server startup; workspace files cannot replace them.
 
 ## Commands
 

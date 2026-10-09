@@ -25,8 +25,11 @@ interface ScriptResult {
 
 export class SandboxService {
   private resolvedRoot: string | undefined;
+  private readonly configuredRoot: string;
 
-  private constructor(private readonly configuredRoot: string) {}
+  private constructor(configuredRoot: string) {
+    this.configuredRoot = configuredRoot;
+  }
 
   static async create(sandboxRoot: string): Promise<SandboxService> {
     const sandbox = new SandboxService(sandboxRoot);

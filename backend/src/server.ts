@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { createApp } from "./app.ts";
 import { createDatabase } from "./database.ts";
@@ -17,6 +18,10 @@ const env = z
   })
   .parse(process.env);
 
+const systemPrompt = await readFile(
+  new URL("../prompts/assistant.md", import.meta.url),
+  "utf8",
+);
 const sandbox = await SandboxService.create(
   fileURLToPath(new URL("../.sandbox", import.meta.url)),
 );
@@ -27,6 +32,7 @@ const { app, shutdown } = createApp({
     sandbox,
     apiKey: env.OPENROUTER_API_KEY,
     model: env.OPENROUTER_MODEL,
+    systemPrompt,
   }),
   store: database.store,
   fileStorage: database.fileStorage,
