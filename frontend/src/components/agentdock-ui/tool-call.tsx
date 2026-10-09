@@ -10,32 +10,28 @@ import {
 } from "./ui/collapsible";
 import { ErrorState } from "./error-state";
 import { formatJson } from "./utils";
+
 export function ToolCall({ item }: { item: RenderToolCallItem }) {
   const [open, setOpen] = useState(false);
   const { tool, active } = item;
   const failed = tool.status === "failed";
+  const running = active && tool.status === "running";
   const status = failed
     ? "Failed"
     : tool.status === "approval"
       ? "Needs approval"
-      : active
+      : running
         ? "Running"
         : tool.status === "complete"
           ? "Complete"
           : "Stopped";
-  const Icon = failed ? CircleAlert : active ? LoaderCircle : Wrench;
-  const input = Object.values(tool.input).find(
-    (value) => typeof value === "string",
-  );
-  const summary =
-    tool.status === "complete" && typeof tool.output === "string"
-      ? tool.output
-      : input;
-  const progress = active
+  const Icon = failed ? CircleAlert : running ? LoaderCircle : Wrench;
+  const progress = running
     ? tool.progress
         .flatMap((part) => (part.type === "text" ? [part.text] : []))
         .at(-1)
     : undefined;
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="min-w-0">
       <CollapsibleTrigger
@@ -48,20 +44,12 @@ export function ToolCall({ item }: { item: RenderToolCallItem }) {
           aria-hidden="true"
           className={`shrink-0 ${failed ? "text-destructive" : ""} ${active ? "motion-safe:animate-spin" : ""}`}
         />
-        <span className="max-w-[50%] truncate" title={tool.name}>
+        <span className="min-w-0 flex-1 truncate" title={tool.name}>
           {tool.name}
         </span>
-        {typeof summary === "string" && (
-          <span
-            className="min-w-0 truncate font-sans text-[12px] opacity-65"
-            title={summary}
-          >
-            {summary}
-          </span>
-        )}
         {status !== "Complete" && (
           <span
-            className={`ml-auto shrink-0 font-sans text-[11px] ${failed ? "text-destructive" : ""}`}
+            className={`shrink-0 font-sans text-[11px] ${failed ? "text-destructive" : ""}`}
           >
             {status}
           </span>
@@ -70,7 +58,7 @@ export function ToolCall({ item }: { item: RenderToolCallItem }) {
           icon={ChevronRight}
           size={12}
           aria-hidden="true"
-          className={`shrink-0 ${open ? "rotate-90" : ""}`}
+          className={`shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
         />
       </CollapsibleTrigger>
       {progress && (
@@ -91,10 +79,10 @@ export function ToolCall({ item }: { item: RenderToolCallItem }) {
                 .map((part) => ("text" in part ? part.text : formatJson(part)))
                 .join("\n")}
             />
-          )}{" "}
+          )}
           {tool.output !== undefined && !failed && (
             <Payload title="Result" value={tool.output} />
-          )}{" "}
+          )}
           {failed && (
             <ErrorState
               title="Tool failed"
@@ -111,6 +99,7 @@ export function ToolCall({ item }: { item: RenderToolCallItem }) {
     </Collapsible>
   );
 }
+
 function Payload({ title, value }: { title: string; value: unknown }) {
   return (
     <div className="min-w-0">

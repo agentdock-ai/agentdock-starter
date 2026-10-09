@@ -155,7 +155,7 @@ export function App() {
         <ChatWorkspace
           className="h-full"
           title={selectedThread.title}
-          brand="AgentDock"
+          brand="Agentdock"
           sidebar={
             <ThreadSidebar
               threads={sidebarThreads}

@@ -16,7 +16,7 @@ export function ToolTimeline({
 }) {
   const [expanded, setExpanded] = useState<boolean | undefined>();
   const active = tools.some((item) => item.active);
-  const open = expanded ?? active;
+  const open = expanded ?? false;
   const failures = tools.filter((item) => item.tool.status === "failed").length;
   if (tools.length === 1)
     return (

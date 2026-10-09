@@ -136,19 +136,20 @@ export function ThreadSidebar({
                     <span className="min-w-0 flex-1 truncate">
                       {thread.title}
                     </span>
+                    {thread.isRunning && (
+                      <span
+                        title="Agent is working"
+                        className="flex shrink-0 items-center text-muted-foreground"
+                      >
+                        <ChatIcon
+                          icon={LoaderCircle}
+                          size={13}
+                          aria-hidden="true"
+                          className="motion-safe:animate-spin"
+                        />
+                      </span>
+                    )}
                   </button>
-                  {thread.isRunning && (
-                    <span
-                      title="Agent is working"
-                      className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
-                    >
-                      <ChatIcon
-                        icon={LoaderCircle}
-                        size={13}
-                        className="motion-safe:animate-spin"
-                      />
-                    </span>
-                  )}
                 </div>
               )}
             </li>
