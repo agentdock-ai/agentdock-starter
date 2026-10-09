@@ -1,10 +1,13 @@
 "use client";
-import { useState, type ReactNode } from "react";
-import { Check, Pencil, Plus, Search, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, LoaderCircle, Plus, Search, X } from "lucide-react";
 import { ChatIcon } from "./icon";
+const doubleClickDelayMs = 250;
 export interface ChatThread {
   id: string;
   title: string;
+  /** Show activity while the app's agent is running this thread. */
+  isRunning?: boolean;
 }
 /** Controlled navigation only. The app owns threads, persistence and authorization. */
 export function ThreadSidebar({
@@ -25,6 +28,26 @@ export function ThreadSidebar({
   const [search, setSearch] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const pendingSelection = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (pendingSelection.current) clearTimeout(pendingSelection.current);
+    },
+    [],
+  );
+  function selectThread(id: string) {
+    if (pendingSelection.current) clearTimeout(pendingSelection.current);
+    pendingSelection.current = setTimeout(() => {
+      pendingSelection.current = null;
+      onSelect(id);
+    }, doubleClickDelayMs);
+  }
+  function renameThread(thread: ChatThread) {
+    if (pendingSelection.current) clearTimeout(pendingSelection.current);
+    pendingSelection.current = null;
+    setDraft(thread.title);
+    setRenamingId(thread.id);
+  }
   const visible = threads.filter((thread) =>
     thread.title.toLowerCase().includes(search.toLowerCase()),
   );
@@ -101,24 +124,30 @@ export function ThreadSidebar({
                     type="button"
                     aria-current={selectedId === thread.id ? "page" : undefined}
                     data-thread-navigation
-                    onClick={() => onSelect(thread.id)}
+                    data-thread-editable={onRename ? "" : undefined}
+                    onClick={() =>
+                      onRename ? selectThread(thread.id) : onSelect(thread.id)
+                    }
+                    onDoubleClick={() => onRename && renameThread(thread)}
                     title={thread.title}
-                    className={`min-w-0 flex-1 truncate rounded-md px-2 py-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring ${selectedId === thread.id ? "bg-muted/60 text-foreground" : "text-muted-foreground"}`}
+                    aria-label={`${thread.title}${thread.isRunning ? ", agent is working" : ""}`}
+                    className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedId === thread.id ? "bg-background text-foreground shadow-sm ring-1 ring-border hover:bg-background" : "text-muted-foreground hover:bg-muted/60"}`}
                   >
-                    {thread.title}
+                    <span className="min-w-0 flex-1 truncate">
+                      {thread.title}
+                    </span>
                   </button>
-                  {onRename && (
-                    <button
-                      type="button"
-                      aria-label={`Rename ${thread.title}`}
-                      onClick={() => {
-                        setDraft(thread.title);
-                        setRenamingId(thread.id);
-                      }}
-                      className="rounded p-1 text-muted-foreground opacity-0 hover:bg-muted group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+                  {thread.isRunning && (
+                    <span
+                      title="Agent is working"
+                      className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
                     >
-                      <ChatIcon icon={Pencil} size={13} />
-                    </button>
+                      <ChatIcon
+                        icon={LoaderCircle}
+                        size={13}
+                        className="motion-safe:animate-spin"
+                      />
+                    </span>
                   )}
                 </div>
               )}

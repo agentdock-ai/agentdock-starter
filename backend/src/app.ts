@@ -23,7 +23,7 @@ export function createApp(dependencies: AppDependencies) {
   });
 
   app.use("/health", createHealthController(dependencies.health));
-  app.use("/conversations", createConversationController(handler));
+  app.use(createConversationController(handler));
   app.use((_request, response) =>
     response.status(404).json({ error: "Route not found." }),
   );

@@ -1,19 +1,19 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AgentProvider,
   useAgentActions,
   useAgentState,
 } from "@agentdock-ai/react";
-import type { ChatProps } from "./types.js";
-import { ChatShell } from "./chat-shell.js";
-import { ChatViewport } from "./chat-viewport.js";
-import { MessageList } from "./message-list.js";
-import { EmptyState, Suggestions } from "./empty-state.js";
-import { Composer } from "./composer.js";
-import { ErrorState } from "./error-state.js";
+import type { ChatProps } from "./types";
+import { ChatShell } from "./chat-shell";
+import { ChatViewport } from "./chat-viewport";
+import { MessageList } from "./message-list";
+import { EmptyState, Suggestions } from "./empty-state";
+import { Composer } from "./composer";
+import { ErrorState } from "./error-state";
 import { Button } from "./ui/button";
-import { useChatAttachments } from "./use-chat-attachments.js";
+import { useChatAttachments } from "./use-chat-attachments";
 
 export function Chat(props: ChatProps) {
   return (
@@ -31,8 +31,14 @@ function ChatSurface({
   welcomeTitle,
   welcomeDescription,
   placeholder,
+  onActivityChange,
 }: ChatProps) {
-  const { renderModel: model, agent, streamStatus, conversationActions } = useAgentState();
+  const {
+    renderModel: model,
+    agent,
+    streamStatus,
+    conversationActions,
+  } = useAgentState();
   const actions = useAgentActions(adapter);
   const [draft, setDraft] = useState("");
   const attachments = useChatAttachments(adapter.attachments);
@@ -40,6 +46,9 @@ function ChatSurface({
     actions.busy ||
     (streamStatus === "consuming" &&
       !["completed", "failed", "cancelled"].includes(agent.status));
+  useEffect(() => {
+    onActivityChange?.(active);
+  }, [active, onActivityChange]);
   const waiting = agent.status === "waiting" && streamStatus !== "stopped";
   const paused = waiting && agent.interrupts.length === 0;
   const blocksInput = waiting && !conversationActions?.canStart;

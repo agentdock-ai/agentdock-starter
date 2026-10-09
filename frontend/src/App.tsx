@@ -17,15 +17,28 @@ export function App() {
     Promise.resolve(),
   );
   const { route, navigateToThread } = useThreadRoute();
+  const [runningThreadIds, setRunningThreadIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const markThreadActivity = useCallback((id: string, running: boolean) => {
+    setRunningThreadIds((current) => {
+      if (current.has(id) === running) return current;
+      const next = new Set(current);
+      if (running) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
   const client = useMemo(
     () =>
       createConversationClient({
         getThreadId: () => threadId.current,
         onOperationSettled: (id) => {
+          markThreadActivity(id, false);
           if (threadId.current === id) void refreshHistoryRef.current(id);
         },
       }),
-    [],
+    [markThreadActivity],
   );
   const conversations = useConversations(client);
   refreshHistoryRef.current = (id) => conversations.refreshHistory(id);
@@ -111,6 +124,21 @@ export function App() {
     conversations.selectedThread?.id === route.threadId
       ? conversations.selectedThread
       : null;
+  const sidebarThreads = useMemo(
+    () =>
+      conversations.threads.map((thread) => ({
+        ...thread,
+        isRunning: runningThreadIds.has(thread.id),
+      })),
+    [conversations.threads, runningThreadIds],
+  );
+  const selectedThreadId = selectedThread?.id;
+  const onActivityChange = useCallback(
+    (running: boolean) => {
+      if (selectedThreadId) markThreadActivity(selectedThreadId, running);
+    },
+    [markThreadActivity, selectedThread?.id],
+  );
   const error = actionError ?? conversations.error;
 
   return (
@@ -130,7 +158,7 @@ export function App() {
           brand="AgentDock"
           sidebar={
             <ThreadSidebar
-              threads={conversations.threads}
+              threads={sidebarThreads}
               selectedId={selectedThread.id}
               onSelect={(id) => {
                 if (id !== selectedThread.id) openThread(id);
@@ -180,6 +208,7 @@ export function App() {
                   "Build a clean portfolio website in HTML and CSS.",
                   "Create a small .mjs script that prints a greeting, then run it.",
                 ]}
+                onActivityChange={onActivityChange}
               />
             </div>
           )}

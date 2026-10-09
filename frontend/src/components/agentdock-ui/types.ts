@@ -9,4 +9,6 @@ export interface ChatProps {
   welcomeDescription?: string;
   suggestions?: readonly string[];
   placeholder?: string;
+  /** Reports whether this chat currently has an active agent run. */
+  onActivityChange?: (active: boolean) => void;
 }

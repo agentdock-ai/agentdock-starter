@@ -66,6 +66,12 @@ on [http://127.0.0.1:3000](http://127.0.0.1:3000). `yarn dev` watches both apps;
 `yarn start` starts them without watching backend files. Stopping the root
 command stops both processes.
 
+The conversations handler publishes its OpenAPI document at
+[`http://127.0.0.1:3000/openapi.json`](http://127.0.0.1:3000/openapi.json) and
+interactive Swagger UI at [http://127.0.0.1:3000/docs](http://127.0.0.1:3000/docs).
+The docs page loads Swagger UI assets from jsDelivr, so a browser needs internet
+access to render the interface.
+
 ## Project layout
 
 ```text

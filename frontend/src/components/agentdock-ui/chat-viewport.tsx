@@ -23,7 +23,11 @@ export function ChatViewport({
     const el = viewport.current;
     if (!el) return;
     following.current = true;
-    el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches
+      ? "instant"
+      : "smooth";
+    el.scrollTo({ top: el.scrollHeight, behavior });
     lastScroll.current = el.scrollTop;
     setShowLatest(false);
   }
@@ -70,7 +74,7 @@ export function ChatViewport({
           if (el.scrollTop < lastScroll.current - 1) following.current = false;
           else if (nearBottom) following.current = true;
           lastScroll.current = el.scrollTop;
-          if (nearBottom) setShowLatest(false);
+          setShowLatest(!nearBottom);
         }}
         onClickCapture={(event) => {
           // Expanding a disclosure should preserve the reader's place.
@@ -93,7 +97,7 @@ export function ChatViewport({
           {children}
         </div>
       </div>
-      {showLatest && <ScrollToLatest onClick={toBottom} />}
+      <ScrollToLatest onClick={toBottom} visible={showLatest} />
     </div>
   );
 }
