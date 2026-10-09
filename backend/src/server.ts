@@ -13,6 +13,7 @@ const env = z
     DATABASE_URL: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),
     OPENROUTER_MODEL: z.string().min(1).default("openai/gpt-4o-mini"),
+    BRAVE_SEARCH_API_KEY: z.string().optional(),
     DEMO_USER_ID: z.string().min(1).default("local-demo-user"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   })
@@ -33,6 +34,7 @@ const { app, shutdown } = createApp({
     apiKey: env.OPENROUTER_API_KEY,
     model: env.OPENROUTER_MODEL,
     systemPrompt,
+    braveSearchApiKey: env.BRAVE_SEARCH_API_KEY,
   }),
   store: database.store,
   fileStorage: database.fileStorage,

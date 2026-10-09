@@ -11,6 +11,7 @@ interface RuntimeOptions {
   apiKey: string;
   model: string;
   systemPrompt: string;
+  braveSearchApiKey?: string;
 }
 
 export function createRuntime({
@@ -19,13 +20,14 @@ export function createRuntime({
   apiKey,
   model,
   systemPrompt,
+  braveSearchApiKey,
 }: RuntimeOptions) {
   const agent = createAgent({
     model: new ChatOpenRouter({
       model,
       apiKey,
     }),
-    tools: createTools(sandbox),
+    tools: createTools(sandbox, { braveSearchApiKey }),
     checkpointer,
     systemPrompt,
     middleware: [

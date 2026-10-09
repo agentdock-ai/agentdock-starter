@@ -50,7 +50,7 @@ export function ThreadSidebar({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search threads"
-            className="min-w-0 flex-1 bg-transparent py-1 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 flex-1 bg-transparent py-1 text-[13px] outline-none placeholder:text-muted-foreground"
           />
         </label>
       </div>

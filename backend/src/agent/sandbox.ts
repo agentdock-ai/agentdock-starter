@@ -13,6 +13,9 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_OUTPUT_BYTES = 64 * 1024;
 const MAX_RUNTIME_MS = 10_000;
+const MAX_SEARCH_ENTRIES = 500;
+const MAX_SEARCH_MATCHES = 40;
+const MAX_SEARCH_BYTES = 8 * 1024 * 1024;
 
 interface ScriptResult {
   exitCode: number | null;
@@ -70,6 +73,75 @@ export class SandboxService {
     }
   }
 
+  async search(query: string, path = ".") {
+    if (!query.trim()) throw new Error("Search text must not be empty.");
+    if (Buffer.byteLength(query, "utf8") > 200)
+      throw new Error("Search text is limited to 200 bytes.");
+
+    const root = this.root;
+    const directories = [await this.resolveDirectory(path)];
+    const normalizedQuery = query.toLocaleLowerCase();
+    const matches: Array<{ path: string; line: number; text: string }> = [];
+    let searchedFiles = 0;
+    let searchedEntries = 0;
+    let searchedBytes = 0;
+    let truncated = false;
+
+    while (directories.length > 0) {
+      const directory = directories.pop()!;
+      const entries = await readdir(directory, { withFileTypes: true });
+      entries.sort((left, right) => left.name.localeCompare(right.name));
+
+      for (const entry of entries) {
+        if (searchedEntries >= MAX_SEARCH_ENTRIES) {
+          truncated = true;
+          break;
+        }
+        searchedEntries += 1;
+        if (entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) {
+          if (![".git", "node_modules"].includes(entry.name))
+            directories.push(resolve(directory, entry.name));
+          continue;
+        }
+        if (!entry.isFile()) continue;
+        const file = resolve(directory, entry.name);
+        let content: string;
+        try {
+          content = await this.read(relative(root, file));
+        } catch {
+          continue;
+        }
+        searchedFiles += 1;
+        searchedBytes += Buffer.byteLength(content, "utf8");
+        if (searchedBytes > MAX_SEARCH_BYTES) {
+          truncated = true;
+          break;
+        }
+        if (content.includes("\0")) continue;
+
+        for (const [index, line] of content.split(/\r?\n/).entries()) {
+          const matchIndex = line.toLocaleLowerCase().indexOf(normalizedQuery);
+          if (matchIndex < 0) continue;
+          const snippetStart = Math.max(0, matchIndex - 100);
+          matches.push({
+            path: relative(root, file),
+            line: index + 1,
+            text: line.slice(snippetStart, snippetStart + 240),
+          });
+          if (matches.length >= MAX_SEARCH_MATCHES) {
+            truncated = true;
+            break;
+          }
+        }
+        if (truncated) break;
+      }
+      if (truncated) break;
+    }
+
+    return { matches, searchedFiles, truncated };
+  }
+
   async write(path: string, content: string) {
     if (typeof content !== "string")
       throw new Error("File content must be text.");
@@ -94,6 +166,21 @@ export class SandboxService {
     } finally {
       await handle.close();
     }
+  }
+
+  async edit(path: string, oldText: string, newText: string) {
+    if (!oldText) throw new Error("The text to replace must not be empty.");
+    const content = await this.read(path);
+    const firstMatch = content.indexOf(oldText);
+    if (firstMatch < 0) throw new Error("The text to replace was not found.");
+    if (content.indexOf(oldText, firstMatch + oldText.length) >= 0)
+      throw new Error("The text to replace must match exactly once.");
+
+    const updated =
+      content.slice(0, firstMatch) +
+      newText +
+      content.slice(firstMatch + oldText.length);
+    return this.write(path, updated);
   }
 
   async delete(path: string) {

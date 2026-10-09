@@ -42,7 +42,7 @@ export function ChatWorkspace({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full overflow-hidden rounded-md border border-border bg-background font-sans text-foreground antialiased",
+        "flex h-full min-h-0 w-full overflow-hidden bg-background font-sans text-foreground antialiased",
         className,
       )}
     >

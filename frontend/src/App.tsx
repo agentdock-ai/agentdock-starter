@@ -5,12 +5,18 @@ import {
   useConversations,
 } from "@agentdock-ai/react";
 import { Chat, ChatWorkspace, ThreadSidebar } from "@/components/agentdock-ui";
+import { useThreadRoute } from "@/hooks/use-thread-route";
+
+const SELECTED_THREAD_KEY = "agentdock:selectedThreadId";
 
 export function App() {
   const threadId = useRef<string | null>(null);
+  const resolvingHome = useRef(false);
+  const creatingThread = useRef(false);
   const refreshHistoryRef = useRef<(id: string) => Promise<void>>(() =>
     Promise.resolve(),
   );
+  const { route, navigateToThread } = useThreadRoute();
   const client = useMemo(
     () =>
       createConversationClient({
@@ -24,42 +30,73 @@ export function App() {
   const conversations = useConversations(client);
   refreshHistoryRef.current = (id) => conversations.refreshHistory(id);
   const [store, setStore] = useState(() => new AgentStore());
-  const [bootstrapped, setBootstrapped] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const create = useCallback(async () => {
-    const created = await conversations.create();
-    threadId.current = created.id;
-    sessionStorage.setItem("agentdock:selectedThreadId", created.id);
-  }, [conversations.create]);
-
-  const select = useCallback(
-    async (id: string) => {
-      threadId.current = id;
-      await conversations.select(id);
-      sessionStorage.setItem("agentdock:selectedThreadId", id);
+  const createThread = useCallback(
+    async (replace = false) => {
+      if (creatingThread.current) return;
+      setActionError(null);
+      creatingThread.current = true;
+      try {
+        const created = await conversations.create();
+        threadId.current = created.id;
+        sessionStorage.setItem(SELECTED_THREAD_KEY, created.id);
+        navigateToThread(created.id, { replace });
+      } catch (cause) {
+        setActionError(
+          cause instanceof Error ? cause.message : "Could not create a thread.",
+        );
+      } finally {
+        creatingThread.current = false;
+      }
     },
-    [conversations.select],
+    [conversations.create, navigateToThread],
+  );
+
+  const openThread = useCallback(
+    (id: string) => {
+      threadId.current = id;
+      sessionStorage.setItem(SELECTED_THREAD_KEY, id);
+      navigateToThread(id);
+    },
+    [navigateToThread],
   );
 
   useEffect(() => {
-    if (bootstrapped || conversations.loading) return;
-    setBootstrapped(true);
-    if (conversations.threads.length === 0) {
-      void create();
+    if (route.type !== "thread") {
+      resolvingHome.current = false;
       return;
     }
-    const remembered = sessionStorage.getItem("agentdock:selectedThreadId");
+
+    threadId.current = route.threadId;
+    sessionStorage.setItem(SELECTED_THREAD_KEY, route.threadId);
+    if (creatingThread.current) return;
+    if (conversations.selectedThread?.id !== route.threadId)
+      void conversations.select(route.threadId);
+  }, [route, conversations.select, conversations.selectedThread?.id]);
+
+  useEffect(() => {
+    if (route.type !== "home" || conversations.loading || resolvingHome.current)
+      return;
+
+    resolvingHome.current = true;
+    const rememberedId = sessionStorage.getItem(SELECTED_THREAD_KEY);
     const selected =
-      conversations.threads.find((item) => item.id === remembered) ??
-      conversations.threads[0]!;
-    threadId.current = selected.id;
-    void conversations.select(selected.id);
+      conversations.threads.find((thread) => thread.id === rememberedId) ??
+      conversations.threads[0];
+
+    if (selected) {
+      navigateToThread(selected.id, { replace: true });
+      return;
+    }
+
+    void createThread(true);
   }, [
-    bootstrapped,
+    route.type,
     conversations.loading,
-    conversations.select,
     conversations.threads,
-    create,
+    createThread,
+    navigateToThread,
   ]);
 
   useEffect(() => {
@@ -69,29 +106,36 @@ export function App() {
     setStore(next);
   }, [conversations.history, conversations.selectedThread]);
 
+  const selectedThread =
+    route.type === "thread" &&
+    conversations.selectedThread?.id === route.threadId
+      ? conversations.selectedThread
+      : null;
+  const error = actionError ?? conversations.error;
+
   return (
-    <main className="h-dvh w-full p-2 sm:p-4">
-      {conversations.error && (
+    <main className="h-dvh w-full">
+      {error && selectedThread && (
         <p
           role="alert"
           className="mb-2 rounded-md border border-destructive/40 bg-background px-3 py-2 text-sm text-destructive"
         >
-          {conversations.error}
+          {error}
         </p>
       )}
-      {conversations.selectedThread ? (
+      {selectedThread ? (
         <ChatWorkspace
           className="h-full"
-          title={conversations.selectedThread.title}
+          title={selectedThread.title}
           brand="AgentDock"
           sidebar={
             <ThreadSidebar
               threads={conversations.threads}
-              selectedId={conversations.selectedThread.id}
+              selectedId={selectedThread.id}
               onSelect={(id) => {
-                if (id !== conversations.selectedThread?.id) void select(id);
+                if (id !== selectedThread.id) openThread(id);
               }}
-              onNew={() => void create()}
+              onNew={() => void createThread()}
               onRename={(id, title) => void conversations.rename(id, title)}
               footer={
                 conversations.hasMoreThreads ? (
@@ -126,7 +170,7 @@ export function App() {
                 </button>
               )}
               <Chat
-                key={conversations.selectedThread.id}
+                key={selectedThread.id}
                 store={store}
                 adapter={client.adapter}
                 className="min-h-0 flex-1"
@@ -143,11 +187,24 @@ export function App() {
       ) : (
         <div
           role="status"
-          className="flex h-full items-center justify-center text-sm text-muted-foreground"
+          className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground"
         >
-          {conversations.loading
-            ? "Loading conversations…"
-            : "Connect to the Node server to start a thread."}
+          <span>
+            {route.type === "not-found"
+              ? "This thread URL is invalid."
+              : error
+                ? "Could not load this conversation."
+                : "Loading conversation…"}
+          </span>
+          {(route.type === "not-found" || error) && (
+            <button
+              type="button"
+              onClick={() => void createThread()}
+              className="rounded-lg border border-border px-3 py-1.5 text-foreground hover:bg-muted/50"
+            >
+              Start a new thread
+            </button>
+          )}
         </div>
       )}
     </main>
