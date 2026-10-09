@@ -3,14 +3,13 @@ import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createSandbox } from "../src/agent/sandbox.ts";
+import { SandboxService } from "../src/agent/sandbox.ts";
 
 test("aborting an approved script waits for process exit and prevents later writes", async () => {
   const root = await mkdtemp(join(tmpdir(), "agentdock-script-abort-"));
-  const sandbox = createSandbox(root);
+  const sandbox = await SandboxService.create(root);
   const controller = new AbortController();
   try {
-    await sandbox.initialize();
     await writeFile(
       join(root, "slow.mjs"),
       [

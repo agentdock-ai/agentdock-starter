@@ -3,13 +3,12 @@ import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createSandbox } from "../src/agent/sandbox.ts";
+import { SandboxService } from "../src/agent/sandbox.ts";
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "agentdock-sandbox-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const sandbox = createSandbox(join(root, "workspace"));
-  await sandbox.initialize();
+  const sandbox = await SandboxService.create(join(root, "workspace"));
   return { root, sandbox };
 }
 

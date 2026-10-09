@@ -2,15 +2,22 @@ import { ChatOpenRouter } from "@langchain/openrouter";
 import { Agentdock, validateToolApprovalResume } from "@agentdock-ai/agentdock";
 import { createAgent, humanInTheLoopMiddleware } from "langchain";
 import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
-import type { createSandbox } from "./sandbox.ts";
+import type { SandboxService } from "./sandbox.ts";
 import { createTools } from "./tools.ts";
 
-export function createRuntime(
-  checkpointer: BaseCheckpointSaver,
-  sandbox: ReturnType<typeof createSandbox>,
-  apiKey: string,
-  model: string,
-) {
+interface RuntimeOptions {
+  checkpointer: BaseCheckpointSaver;
+  sandbox: SandboxService;
+  apiKey: string;
+  model: string;
+}
+
+export function createRuntime({
+  checkpointer,
+  sandbox,
+  apiKey,
+  model,
+}: RuntimeOptions) {
   const agent = createAgent({
     model: new ChatOpenRouter({
       model,

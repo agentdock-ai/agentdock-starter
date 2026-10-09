@@ -1,9 +1,9 @@
 import { tool } from "langchain";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
-import type { createSandbox } from "./sandbox.ts";
+import type { SandboxService } from "./sandbox.ts";
 
-export function createTools(sandbox: ReturnType<typeof createSandbox>) {
+export function createTools(sandbox: SandboxService) {
   return [
     tool(
       async ({ path }) => JSON.stringify(await sandbox.list(path), null, 2),

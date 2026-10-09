@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createApp } from "./app.ts";
 import { createDatabase } from "./database.ts";
 import { createRuntime } from "./agent/runtime.ts";
-import { createSandbox } from "./agent/sandbox.ts";
+import { SandboxService } from "./agent/sandbox.ts";
 import { createStartInput } from "./services/run-input.ts";
 import { checkDatabaseConnection } from "./models/health-model.ts";
 
@@ -17,18 +17,17 @@ const env = z
   })
   .parse(process.env);
 
-const sandbox = createSandbox(
+const sandbox = await SandboxService.create(
   fileURLToPath(new URL("../.sandbox", import.meta.url)),
 );
-await sandbox.initialize();
 const database = await createDatabase(env.DATABASE_URL);
 const { app, shutdown } = createApp({
-  runtime: createRuntime(
-    database.checkpointer,
+  runtime: createRuntime({
+    checkpointer: database.checkpointer,
     sandbox,
-    env.OPENROUTER_API_KEY,
-    env.OPENROUTER_MODEL,
-  ),
+    apiKey: env.OPENROUTER_API_KEY,
+    model: env.OPENROUTER_MODEL,
+  }),
   store: database.store,
   fileStorage: database.fileStorage,
   actorId: env.DEMO_USER_ID,
