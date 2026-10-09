@@ -1,12 +1,43 @@
-# Agentdock starter
+<div align="center">
+  <p><img src="./logo.png" alt="Agentdock" width="320" /></p>
+  <p>
+    <a href="https://github.com/agentdock-ai/agentdock-starter"><img alt="GitHub repository" src="https://img.shields.io/badge/GitHub-agentdock--starter-181717?logo=github" /></a>
+    <img alt="Node.js 22.18+" src="https://img.shields.io/badge/Node.js-22.18%2B-339933?logo=node.js&logoColor=white" />
+    <img alt="Express 5" src="https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white" />
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-powered-4169E1?logo=postgresql&logoColor=white" />
+  </p>
+  <p><strong>A simple, persistent chatbot built with Agentdock, LangGraph, Express, and React.</strong></p>
+</div>
 
-A small TypeScript backend and React frontend for a persistent Agentdock chat. The starter configures the compiled graph, native Postgres checkpointer, PostgresStore, trusted demo identity, and cancellable application tools. `@agentdock-ai/conversations` owns conversation routes, Store records, ordered transcript persistence, native-control projection, operation scoping, request settlement, and a reusable PostgreSQL attachment-byte adapter. The shared React client and hook own thread/history synchronization while the existing `ChatAdapter` remains the UI boundary.
+Agentdock Starter is a small full-stack Node.js application that shows how to
+build a streaming chat assistant with durable conversations. The Express backend
+runs a compiled LangGraph agent through Agentdock. A React frontend provides the
+chat experience, and PostgreSQL stores graph checkpoints and conversation data.
 
-The supported deployment profile is one execution-owning backend process. Multiple backend workers are unsupported: the Store is not an execution lock and does not fence stale native checkpoint writers.
+## What’s included
+
+- Streaming assistant replies with tool activity and approval prompts.
+- Persistent threads and message history backed by PostgreSQL.
+- A sandbox workspace with tools for listing, reading, and editing files.
+- Human approval before file deletion or running a `.mjs` script.
+- A React chat UI with thread selection, image attachments, and history reload.
+
+## Stack
+
+| Area        | Technology                            |
+| ----------- | ------------------------------------- |
+| Backend     | Node.js 22.18+, TypeScript, Express 5 |
+| Agent       | Agentdock, LangGraph, LangChain       |
+| Model       | OpenRouter                            |
+| Persistence | PostgreSQL checkpointer and Store     |
+| Frontend    | React, Vite, Agentdock React client   |
 
 ## Run locally
 
-Requires Node.js 22.18+ and Yarn Classic. This checkout uses sibling `agentdock` and `agentdock-ui` repositories. Build their packages and registry first:
+This development checkout uses the sibling `agentdock` and `agentdock-ui`
+repositories through local workspace links. Build their packages and UI registry
+first:
 
 ```sh
 yarn --cwd ../agentdock build
@@ -15,31 +46,64 @@ yarn --cwd ../agentdock-ui registry:build
 yarn --cwd ../agentdock-ui cli:build
 ```
 
-From this starter's root:
+Then install and start the starter:
 
 ```sh
 yarn install
 cp backend/.env.example backend/.env
-# Set DATABASE_URL, OPENROUTER_API_KEY and OPENROUTER_MODEL in backend/.env.
+```
+
+Set `DATABASE_URL`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL` in
+`backend/.env`. Start PostgreSQL and both apps:
+
+```sh
 docker compose up -d
 yarn dev
 ```
 
-Open http://127.0.0.1:5173. The backend listens on http://127.0.0.1:3000. `yarn dev` watches both apps; `yarn start` starts both without watching backend files. Stopping the root command stops both processes.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The Express backend listens
+on [http://127.0.0.1:3000](http://127.0.0.1:3000). `yarn dev` watches both apps;
+`yarn start` starts them without watching backend files. Stopping the root
+command stops both processes.
 
-## Conversation storage
+## Project layout
 
-The native graph checkpointer stores workflow state. The PostgresStore stores Agentdock thread metadata, ordered display messages, operation receipts, and attachment references. Image bytes use `createPostgresConversationFileStorage` from `@agentdock-ai/conversations`, which creates the `agentdock_conversation_files` table by default. Startup sets up the native checkpointer, LangGraph Store schema, ordered catalog index, and file-byte table.
+```text
+backend/   Express server, LangGraph runtime, sandbox tools, and PostgreSQL setup
+frontend/  React chat application and editable UI components
+```
 
-The starter uses the shared conversation client and `/conversations` API. Its PostgreSQL file storage can be replaced by an adapter implementing `put`, `get`, and idempotent `delete`.
+The starter delegates conversation routes, thread records, transcript
+persistence, and event synchronization to `@agentdock-ai/conversations` and the
+shared Agentdock React client. LangGraph owns graph execution and checkpoint
+state; PostgreSQL Store records hold the conversation catalog and display
+history.
 
 ## Commands
 
-- `yarn ci` checks formatting, TypeScript, deterministic backend tests, and the frontend build.
-- `yarn test` runs deterministic backend tests without provider requests.
-- `AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:db` runs the compiled-graph, PostgresStore/checkpointer, attachment persistence, and separate-process approval-recovery suites. The URL must point to a disposable database whose name contains `test`.
-- `AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:load` reports bounded catalog paging, transcript-write latency, and RSS for a synthetic PostgresStore workload. This is a local baseline, not a production capacity claim.
-- `yarn build` checks backend TypeScript and builds the frontend.
-- `yarn ui:add` installs current registry components from the local Agentdock UI CLI.
+| Command          | Purpose                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `yarn dev`       | Run the backend and frontend in development mode               |
+| `yarn start`     | Run both apps without backend file watching                    |
+| `yarn build`     | Typecheck the backend and build the frontend                   |
+| `yarn typecheck` | Typecheck both apps                                            |
+| `yarn test`      | Run deterministic backend tests                                |
+| `yarn ci`        | Run formatting checks, tests, and the build                    |
+| `yarn ui:add`    | Refresh the starter chat components from the local UI registry |
 
-The backend runs TypeScript directly using Node's built-in support. This demo uses a fixed trusted server-side user ID and a loopback-only server; replace that identity resolution with application authentication before exposing it to users.
+Database-backed verification uses a disposable PostgreSQL database:
+
+```sh
+AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:db
+AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:load
+```
+
+The test database name must contain `test`. The load command reports a local
+synthetic baseline, not a production capacity claim.
+
+## Deployment note
+
+The supported deployment runs one execution-owning backend process. The Store
+does not coordinate graph execution across multiple workers. This demo also uses
+a fixed server-side user ID and binds to loopback; add application
+authentication and trusted user identity before exposing it to users.
