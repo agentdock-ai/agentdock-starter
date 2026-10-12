@@ -14,7 +14,7 @@ import {
 import {
   createScriptedMessageChunks,
   createToolCallArgumentChunks,
-} from "../../../agentdock/packages/agentdock/test/helpers/stream-fixtures.mjs";
+} from "../../../packages/server-core/test-support/stream-fixtures.mjs";
 import { createApp } from "../src/app.ts";
 
 const databaseUrl = process.env.AGENTDOCK_TEST_DATABASE_URL;

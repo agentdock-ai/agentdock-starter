@@ -19,8 +19,8 @@
     "express": "^5.1.0"
   },
   "devDependencies": {
-    "@agentdock-ai/agentdock": "link:../../../agentdock/packages/agentdock",
-    "@agentdock-ai/conversations": "link:../../../agentdock/packages/conversations",
+    "@agentdock-ai/agentdock": "^0.2.0",
+    "@agentdock-ai/conversations": "^0.1.1",
     "@langchain/core": "1.2.11",
     "@langchain/langgraph-checkpoint": "^1.1.5",
     "@types/express": "^5.0.0",

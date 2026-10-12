@@ -9,13 +9,13 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "ui:add": "node ../../agentdock-ui/packages/cli/dist/index.js add chat --yes",
+    "ui:add": "agentdock-ui add chat --yes",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agentdock-ai/contracts": "link:../../agentdock/packages/contracts",
-    "@agentdock-ai/react": "link:../../agentdock-ui/packages/react",
-    "@agentdock-ai/ui-core": "link:../../agentdock-ui/packages/ui-core",
+    "@agentdock-ai/contracts": "^0.2.0",
+    "@agentdock-ai/react": "^0.1.1",
+    "@agentdock-ai/ui-core": "^0.1.1",
     "lucide-react": "^1.46.0",
     "radix-ui": "^1.6.7",
     "react": "^19.3.0",
@@ -24,7 +24,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "agentdock-ui": "link:../../agentdock-ui/packages/cli",
+    "@agentdock-ai/agentdock-ui": "^0.1.0",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^26.0.0",
     "@types/react": "^19.0.0",

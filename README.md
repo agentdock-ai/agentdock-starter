@@ -37,39 +37,33 @@ and conversation data.
 
 ## Run locally
 
-This development checkout uses the sibling `agentdock` and `agentdock-ui`
-repositories through local workspace links. Build their packages and UI registry
-first:
+Install dependencies and configure the shared environment file:
 
 ```sh
-yarn --cwd ../agentdock build
-yarn --cwd ../agentdock-ui build:packages
-yarn --cwd ../agentdock-ui registry:build
-yarn --cwd ../agentdock-ui cli:build
-```
-
-Then install dependencies and configure the shared environment file:
-
-```sh
-yarn install
+npm install
 cp .env.example .env
 ```
+
+AgentDock Core and UI dependencies install from npm using the versions declared
+in the workspace manifests. npm workspaces create symlinks for the Starter's own
+shared server core and backend/frontend packages. No sibling AgentDock checkout
+or local package build is needed.
 
 Set `DATABASE_URL`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL` in `.env`.
 Start PostgreSQL and select one backend:
 
 ```sh
 docker compose up -d
-yarn dev:express
+npm run dev:express
 # Or choose one of these:
-yarn dev:fastify
-yarn dev:nestjs
+npm run dev:fastify
+npm run dev:nestjs
 ```
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Every backend uses
 [http://127.0.0.1:3000](http://127.0.0.1:3000), so the frontend proxy and API
-contract stay the same. `yarn dev` selects Express by default. The
-`yarn start:<backend>` commands start the selected backend without watch mode.
+contract stay the same. `npm run dev` selects Express by default. The
+`npm run start:<backend>` commands start the selected backend without watch mode.
 Run only one backend at a time on the default port.
 
 The conversations handler publishes its OpenAPI document at
@@ -99,22 +93,22 @@ and are loaded once during server startup; workspace files cannot replace them.
 
 ## Commands
 
-| Command                                                         | Purpose                                                        |
-| --------------------------------------------------------------- | -------------------------------------------------------------- |
-| `yarn dev`                                                      | Run Express and the frontend (default)                         |
-| `yarn dev:express`, `yarn dev:fastify`, `yarn dev:nestjs`       | Run the selected backend and the frontend                      |
-| `yarn start:express`, `yarn start:fastify`, `yarn start:nestjs` | Run the selected backend without watch mode                    |
-| `yarn build`                                                    | Build the shared core, all backends, and frontend              |
-| `yarn typecheck`                                                | Typecheck the shared core, all backends, and frontend          |
-| `yarn test`                                                     | Run shared core tests and HTTP adapter contract tests          |
-| `yarn ci`                                                       | Run formatting checks, tests, and the build                    |
-| `yarn ui:add`                                                   | Refresh the starter chat components from the local UI registry |
+| Command                                                                  | Purpose                                                    |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `npm run dev`                                                            | Run Express and the frontend (default)                     |
+| `npm run dev:express`, `npm run dev:fastify`, `npm run dev:nestjs`       | Run the selected backend and the frontend                  |
+| `npm run start:express`, `npm run start:fastify`, `npm run start:nestjs` | Run the selected backend without watch mode                |
+| `npm run build`                                                          | Build the shared core, all backends, and frontend          |
+| `npm run typecheck`                                                      | Typecheck the shared core, all backends, and frontend      |
+| `npm test`                                                               | Run shared core tests and HTTP adapter contract tests      |
+| `npm run ci`                                                             | Run formatting checks, tests, and the build                |
+| `npm run ui:add`                                                         | Refresh starter chat components using the published UI CLI |
 
 Database-backed verification uses a disposable PostgreSQL database:
 
 ```sh
-AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:db
-AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test yarn test:load
+AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test npm run test:db
+AGENTDOCK_TEST_DATABASE_URL=postgresql://.../agentdock_test npm run test:load
 ```
 
 The test database name must contain `test`. The load command reports a local

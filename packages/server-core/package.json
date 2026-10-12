@@ -22,9 +22,9 @@
     "test:load": "node --test --test-concurrency=1 tests/conversation-load.test.js"
   },
   "dependencies": {
-    "@agentdock-ai/agentdock": "link:../../agentdock/packages/agentdock",
-    "@agentdock-ai/contracts": "link:../../agentdock/packages/contracts",
-    "@agentdock-ai/conversations": "link:../../agentdock/packages/conversations",
+    "@agentdock-ai/agentdock": "^0.2.0",
+    "@agentdock-ai/contracts": "^0.2.0",
+    "@agentdock-ai/conversations": "^0.1.1",
     "@langchain/core": "1.2.11",
     "@langchain/langgraph": "1.4.18",
     "@langchain/langgraph-checkpoint": "^1.1.5",

@@ -6,7 +6,7 @@ import {
   createScriptedChatModel,
   createScriptedMessageChunks,
   createToolCallArgumentChunks,
-} from "../../../agentdock/packages/agentdock/test/helpers/stream-fixtures.mjs";
+} from "../test-support/stream-fixtures.mjs";
 import { createDatabase } from "../src/database.ts";
 import { createStartInput } from "../src/services/run-input.ts";
 import { ConversationService } from "@agentdock-ai/conversations";
