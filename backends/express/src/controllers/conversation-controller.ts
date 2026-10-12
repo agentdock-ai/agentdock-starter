@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { NodeHttpAdapter, type FetchHandler } from "@agentdock-ai/agentdock";
+import {
+  NodeHttpAdapter,
+  type FetchHandler,
+} from "agentdock-starter-server-core";
 
 export function createConversationController(handler: FetchHandler) {
   const router = Router();

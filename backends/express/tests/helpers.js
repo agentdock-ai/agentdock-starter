@@ -6,8 +6,11 @@ import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { createAgent } from "langchain";
 import { Agentdock } from "@agentdock-ai/agentdock";
 import { createInMemoryConversationStore } from "@agentdock-ai/conversations";
+import {
+  createConversationApplication,
+  createStartInput,
+} from "agentdock-starter-server-core";
 import { createApp } from "../src/app.ts";
-import { createStartInput } from "../src/services/run-input.ts";
 
 class LatestRequestModel extends FakeStreamingChatModel {
   calls = [];
@@ -48,7 +51,7 @@ export async function fixture(t) {
       files.delete(id);
     },
   };
-  const { app, shutdown } = createApp({
+  const application = createConversationApplication({
     runtime,
     store,
     fileStorage,
@@ -57,6 +60,7 @@ export async function fixture(t) {
       createStartInput(prompt, attachments),
     health: async () => {},
   });
+  const { app, shutdown } = createApp(application);
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(async () => {

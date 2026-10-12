@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { startExpressServer } from "./http-server.js";
 import { fixture, startRequest, stoppedResponse } from "./helpers.js";
+import { registerHttpConformanceTests } from "../../../packages/server-core/test-support/http-conformance.js";
+
+registerHttpConformanceTests("Express", startExpressServer);
 
 test(
   "Stop retains its partial transcript; a fresh prompt and explicit Continue remain distinct",

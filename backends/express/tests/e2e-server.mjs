@@ -6,13 +6,16 @@ import { createAgent, humanInTheLoopMiddleware, tool } from "langchain";
 import { z } from "zod";
 import { Agentdock, validateToolApprovalResume } from "@agentdock-ai/agentdock";
 import {
+  createConversationApplication,
+  createDatabase,
+  createStartInput,
+  checkDatabaseConnection,
+} from "agentdock-starter-server-core";
+import {
   createScriptedMessageChunks,
   createToolCallArgumentChunks,
 } from "../../../agentdock/packages/agentdock/test/helpers/stream-fixtures.mjs";
 import { createApp } from "../src/app.ts";
-import { createDatabase } from "../src/database.ts";
-import { checkDatabaseConnection } from "../src/models/health-model.ts";
-import { createStartInput } from "../src/services/run-input.ts";
 
 const databaseUrl = process.env.AGENTDOCK_TEST_DATABASE_URL;
 if (!databaseUrl || !/test/i.test(new URL(databaseUrl).pathname))
@@ -93,7 +96,7 @@ const runtime = new Agentdock(
     validateResume: validateToolApprovalResume,
   },
 );
-const { app, shutdown } = createApp({
+const application = createConversationApplication({
   runtime,
   store: database.store,
   fileStorage: database.fileStorage,
@@ -101,6 +104,7 @@ const { app, shutdown } = createApp({
   prepareInput: createStartInput,
   health: () => checkDatabaseConnection(database.pool),
 });
+const { app, shutdown } = createApp(application);
 const server = app.listen(3016, "127.0.0.1", () =>
   console.log(
     "E2E backend ready on 3016 (compiled graph + PostgreSQL; no provider calls)",

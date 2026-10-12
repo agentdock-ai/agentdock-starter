@@ -7,22 +7,31 @@
     "node": ">=22.18.0"
   },
   "workspaces": [
-    "backend",
+    "packages/server-core",
+    "backends/express",
+    "backends/fastify",
+    "backends/nestjs",
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend dev\" \"yarn workspace agentdock-starter-frontend dev\"",
-    "start": "concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend start\" \"yarn workspace agentdock-starter-frontend dev\"",
-    "build": "yarn workspaces run build",
-    "typecheck": "yarn workspaces run typecheck",
-    "test": "yarn workspace agentdock-starter-backend test",
-    "test:db": "yarn workspace agentdock-starter-backend test:db",
-    "test:load": "yarn workspace agentdock-starter-backend test:load",
+    "dev": "yarn dev:express",
+    "dev:express": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-express dev\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "dev:fastify": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-fastify dev\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "dev:nestjs": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-nestjs dev\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "start": "yarn start:express",
+    "start:express": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-express start\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "start:fastify": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-fastify start\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "start:nestjs": "yarn workspace agentdock-starter-server-core build && concurrently --kill-others -n backend,frontend \"yarn workspace agentdock-starter-backend-nestjs start\" \"yarn workspace agentdock-starter-frontend dev\"",
+    "build": "yarn workspace agentdock-starter-server-core build && yarn workspace agentdock-starter-backend-express build && yarn workspace agentdock-starter-backend-fastify build && yarn workspace agentdock-starter-backend-nestjs build && yarn workspace agentdock-starter-frontend build",
+    "typecheck": "yarn workspace agentdock-starter-server-core build && yarn workspace agentdock-starter-backend-express typecheck && yarn workspace agentdock-starter-backend-fastify typecheck && yarn workspace agentdock-starter-backend-nestjs typecheck && yarn workspace agentdock-starter-frontend typecheck",
+    "test": "yarn workspace agentdock-starter-server-core build && yarn workspace agentdock-starter-server-core test && yarn workspace agentdock-starter-backend-express test && yarn workspace agentdock-starter-backend-fastify test && yarn workspace agentdock-starter-backend-nestjs test",
+    "test:db": "yarn workspace agentdock-starter-server-core build && yarn workspace agentdock-starter-server-core test:db",
+    "test:load": "yarn workspace agentdock-starter-server-core build && yarn workspace agentdock-starter-server-core test:load",
     "ui:add": "yarn workspace agentdock-starter-frontend ui:add",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci": "yarn format:check && yarn test && yarn build",
-    "test:e2e:serve": "yarn workspace agentdock-starter-backend test:e2e:serve"
+    "test:e2e:serve": "yarn workspace agentdock-starter-backend-express test:e2e:serve"
   },
   "resolutions": {
     "@agentdock-ai/agentdock": "link:../agentdock/packages/agentdock",

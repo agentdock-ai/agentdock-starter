@@ -1,0 +1,31 @@
+{
+  "name": "agentdock-starter-backend-express",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=../../.env src/server.ts",
+    "start": "node --env-file=../../.env src/server.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:e2e:serve": "node tests/e2e-server.mjs"
+  },
+  "dependencies": {
+    "agentdock-starter-server-core": "0.0.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@agentdock-ai/agentdock": "link:../../../agentdock/packages/agentdock",
+    "@agentdock-ai/conversations": "link:../../../agentdock/packages/conversations",
+    "@langchain/core": "1.2.11",
+    "@langchain/langgraph-checkpoint": "^1.1.5",
+    "@types/express": "^5.0.0",
+    "@types/node": "^26.0.0",
+    "langchain": "1.5.10",
+    "typescript": "^5.8.0"
+  }
+}
